@@ -1,0 +1,6 @@
+body { font-family: sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; padding: 20px; }
+.chat-container { width: 400px; background: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); overflow: hidden; }
+#chat-box { height: 400px; overflow-y: auto; padding: 15px; border-bottom: 1px solid #ddd; }
+.input-area { display: flex; padding: 10px; }
+input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+button { padding: 10px; margin-left: 5px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; }
