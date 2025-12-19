@@ -1,5 +1,5 @@
 // 1. Token va URL ni eng tepaga qo'yamiz
-const API_TOKEN = "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"; 
+const API_TOKEN = "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"; 
 const API_URL = "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct";
 
 // 2. Keyin funksiyani yozamiz
