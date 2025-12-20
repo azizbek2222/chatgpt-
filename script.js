@@ -1,5 +1,5 @@
 // 1. Yangi tokenni shu yerga qo'ying
-const API_TOKEN = "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"; 
+const API_TOKEN = "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"; 
 const MODEL_URL = "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3-8B-Instruct";
 
 async function sendMessage() {
