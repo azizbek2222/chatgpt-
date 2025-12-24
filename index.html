@@ -2,66 +2,216 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram Kanal Tekshirish</title>
+<title>AI Chat & Rasm + Kod</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #fff;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-box {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.msg {
+  max-width: 80%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.user {
+  background: #22c55e;
+  color: #000;
+  margin-left: auto;
+  border-bottom-right-radius: 2px;
+}
+
+.ai {
+  background: #020617;
+  color: #fff;
+  margin-right: auto;
+  border-bottom-left-radius: 2px;
+}
+
+.code-box {
+  background: #000;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 8px;
+  position: relative;
+}
+
+.code-box pre {
+  margin: 0;
+  overflow-x: auto;
+  font-size: 14px;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #22c55e;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.img-box {
+  margin-top: 8px;
+  border-radius: 8px;
+}
+
+.img-box img {
+  width: 100%;
+  border-radius: 8px;
+}
+
+.input-box {
+  display: flex;
+  padding: 10px;
+  background: #020617;
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+  border-radius: 8px;
+  border: none;
+  padding: 10px;
+  font-size: 15px;
+}
+
+button {
+  margin-left: 8px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 16px;
+  background: #22c55e;
+  color: #000;
+  cursor: pointer;
+}
+</style>
 </head>
+
 <body>
-<h2>Telegram Kanal Tekshirish Mini App</h2>
 
-<!-- Telegram Login Widget -->
-<script async src="https://telegram.org/js/telegram-widget.js?22"
-        data-telegram-login="Test2828vbot"
-        data-size="large"
-        data-on-auth="onTelegramAuth"
-        data-request-access="write">
-</script>
+<div id="chat" class="chat-box"></div>
 
-<!-- Tekshirish tugmasi -->
-<div id="checkSection" style="display:none; margin-top:20px;">
-  <button onclick="checkSubscription()">Kanalga obuna ekanligini tekshir</button>
-  <p id="checkResult"></p>
+<div class="input-box">
+  <textarea id="q" rows="1" placeholder="Savol yoki rasm tavsif yoz..."></textarea>
+  <button onclick="send()">Yubor</button>
 </div>
 
 <script>
-let currentUser = null; // Foydalanuvchi ma'lumotlarini saqlash
+const chat = document.getElementById("chat");
 
-// Telegram login chaqirilganda
-function onTelegramAuth(user) {
-  currentUser = user; // user.id, user.first_name, user.username va boshqalar
-  alert('Logged in as ' + user.first_name + ' ' + (user.last_name || '') + ' (' + user.id + ')');
-  
-  // Tekshirish tugmasini ko‘rsatish
-  document.getElementById('checkSection').style.display = 'block';
-}
+function addMessage(obj) {
+  // obj: {text: string, code: string|null, image: string|null, cls: string}
+  const div = document.createElement("div");
+  div.className = "msg " + obj.cls;
 
-// Kanalga obuna tekshiruvchi funksiya
-function checkSubscription() {
-  if (!currentUser) {
-    alert('Iltimos, avval Telegram orqali kiring!');
-    return;
+  // Matn
+  if (obj.text) {
+    const p = document.createElement("div");
+    p.innerText = obj.text;
+    div.appendChild(p);
   }
 
-  const BOT_TOKEN = '8224144427:AAEKcZywZtHP_61fLKLAWks0Pu9Q80aIDrg';
-  const CHANNEL_USERNAME = '@rocket_mining_news'; // misol: mychannel
+  // Kod
+  if (obj.code) {
+    const codeBox = document.createElement("div");
+    codeBox.className = "code-box";
 
-  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=@${CHANNEL_USERNAME}&user_id=${currentUser.id}`)
-    .then(response => response.json())
-    .then(data => {
-      if(data.ok) {
-        const status = data.result.status;
-        if(status === 'creator' || status === 'administrator' || status === 'member') {
-          document.getElementById('checkResult').innerText = 'Siz kanalga obuna bo‘lgansiz ✅';
-        } else {
-          document.getElementById('checkResult').innerText = 'Siz kanalga obuna emassiz ❌';
-        }
-      } else {
-        document.getElementById('checkResult').innerText = 'Xatolik: ' + data.description;
-      }
-    })
-    .catch(err => {
-      document.getElementById('checkResult').innerText = 'Xatolik: ' + err;
-    });
+    const pre = document.createElement("pre");
+    pre.innerText = obj.code;
+
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.innerText = "Copy";
+    btn.onclick = () => {
+      navigator.clipboard.writeText(obj.code);
+      btn.innerText = "Copied";
+      setTimeout(() => btn.innerText = "Copy", 1500);
+    };
+
+    codeBox.appendChild(btn);
+    codeBox.appendChild(pre);
+    div.appendChild(codeBox);
+  }
+
+  // Rasm
+  if (obj.image) {
+    const imgBox = document.createElement("div");
+    imgBox.className = "img-box";
+    const img = document.createElement("img");
+    img.src = obj.image;
+    imgBox.appendChild(img);
+    div.appendChild(imgBox);
+  }
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function send() {
+  const q = document.getElementById("q");
+  const text = q.value.trim();
+  if (!text) return;
+
+  addMessage({text: text, code: null, image: null, cls: "user"});
+  q.value = "";
+
+  addMessage({text: "⏳ Javob olinmoqda...", code: null, image: null, cls: "ai"});
+
+  try {
+    // Pollinations text
+    const rText = await fetch("https://text.pollinations.ai/" + encodeURIComponent(text));
+    const t = await rText.text();
+
+    // Pollinations image (agar text "rasm:" bilan bo‘lsa)
+    let imgUrl = null;
+    if (text.toLowerCase().startsWith("rasm:")) {
+      const prompt = encodeURIComponent(text.replace(/^rasm:/i,""));
+      imgUrl = "https://image.pollinations.ai/prompt/" + prompt;
+    }
+
+    // Kod topish (``` ... ``` ichida bo‘lsa)
+    let code = null;
+    if (t.includes("```")) {
+      const parts = t.split("```");
+      tMain = parts[0];
+      code = parts[1];
+    } else {
+      tMain = t;
+    }
+
+    // Oxirgi loading xabarni o‘chiramiz
+    chat.removeChild(chat.lastChild);
+
+    addMessage({text: tMain, code: code, image: imgUrl, cls: "ai"});
+  } catch (e) {
+    chat.removeChild(chat.lastChild);
+    addMessage({text: "❌ Xatolik yuz berdi", code: null, image: null, cls: "ai"});
+  }
 }
 </script>
+
 </body>
 </html>
