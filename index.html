@@ -2,111 +2,27 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<title>AI Chat & Rasm + Kod</title>
+<title>AI Chat & Firebase Memory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0f172a;
-  color: #fff;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-box {
-  flex: 1;
-  overflow-y: auto;
-  padding: 15px;
-}
-
-.msg {
-  max-width: 80%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  margin-bottom: 10px;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-}
-
-.user {
-  background: #22c55e;
-  color: #000;
-  margin-left: auto;
-  border-bottom-right-radius: 2px;
-}
-
-.ai {
-  background: #020617;
-  color: #fff;
-  margin-right: auto;
-  border-bottom-left-radius: 2px;
-}
-
-.code-box {
-  background: #000;
-  border-radius: 8px;
-  padding: 10px;
-  margin-top: 8px;
-  position: relative;
-}
-
-.code-box pre {
-  margin: 0;
-  overflow-x: auto;
-  font-size: 14px;
-}
-
-.copy-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: #22c55e;
-  color: #000;
-  border: none;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.img-box {
-  margin-top: 8px;
-  border-radius: 8px;
-}
-
-.img-box img {
-  width: 100%;
-  border-radius: 8px;
-}
-
-.input-box {
-  display: flex;
-  padding: 10px;
-  background: #020617;
-}
-
-textarea {
-  flex: 1;
-  resize: none;
-  border-radius: 8px;
-  border: none;
-  padding: 10px;
-  font-size: 15px;
-}
-
-button {
-  margin-left: 8px;
-  border: none;
-  border-radius: 8px;
-  padding: 0 16px;
-  font-size: 16px;
-  background: #22c55e;
-  color: #000;
-  cursor: pointer;
-}
+/* Dizayn o'zgarishsiz saqlandi */
+body { margin: 0; font-family: Arial, sans-serif; background: #0f172a; color: #fff; height: 100vh; display: flex; flex-direction: column; }
+.chat-box { flex: 1; overflow-y: auto; padding: 15px; }
+.msg { max-width: 80%; padding: 10px 12px; border-radius: 12px; margin-bottom: 10px; word-wrap: break-word; white-space: pre-wrap; }
+.user { background: #22c55e; color: #000; margin-left: auto; border-bottom-right-radius: 2px; }
+.ai { background: #020617; color: #fff; margin-right: auto; border-bottom-left-radius: 2px; }
+.code-box { background: #000; border-radius: 8px; padding: 10px; margin-top: 8px; position: relative; border: 1px solid #334155; }
+.code-box pre { margin: 0; overflow-x: auto; font-size: 14px; padding-top: 25px; }
+.copy-btn { position: absolute; top: 6px; right: 6px; background: #22c55e; color: #000; border: none; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; z-index: 10; }
+.img-box { margin-top: 8px; border-radius: 8px; }
+.img-box img { width: 100%; border-radius: 8px; }
+.input-box { display: flex; padding: 10px; background: #020617; }
+textarea { flex: 1; resize: none; border-radius: 8px; border: none; padding: 10px; font-size: 15px; }
+button { margin-left: 8px; border: none; border-radius: 8px; padding: 0 16px; font-size: 16px; background: #22c55e; color: #000; cursor: pointer; }
 </style>
 </head>
 
@@ -115,48 +31,85 @@ button {
 <div id="chat" class="chat-box"></div>
 
 <div class="input-box">
-  <textarea id="q" rows="1" placeholder="Savol yoki rasm tavsif yoz..."></textarea>
-  <button onclick="send()">Yubor</button>
+  <textarea id="q" rows="1" placeholder="Savol yozing..."></textarea>
+  <button id="sendBtn">Yubor</button>
 </div>
 
 <script>
-const chat = document.getElementById("chat");
+// 1. Siz yuborgan Firebase konfiguratsiyasi
+const firebaseConfig = {
+  apiKey: "AIzaSyBrMKJ4MPilQg6gZsaE-Hlqlgo5F4Q8IsM",
+  authDomain: "xabar-tizimi.firebaseapp.com",
+  databaseURL: "https://xabar-tizimi-default-rtdb.firebaseio.com",
+  projectId: "xabar-tizimi",
+  storageBucket: "xabar-tizimi.firebasestorage.app",
+  messagingSenderId: "3947028451",
+  appId: "1:3947028451:web:a064cb657fcf28f6520ad6",
+  measurementId: "G-RCMHD7ZPNJ"
+};
 
-function addMessage(obj) {
-  // obj: {text: string, code: string|null, image: string|null, cls: string}
+// Firebase-ni ishga tushirish
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const chatRef = db.ref("messages");
+
+const chatDiv = document.getElementById("chat");
+const qInput = document.getElementById("q");
+const sendBtn = document.getElementById("sendBtn");
+let chatHistory = []; 
+
+// Nusxa olish funksiyasi
+function copyToClipboard(text, btn) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => showSuccess(btn));
+  } else {
+    let textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try { document.execCommand('copy'); showSuccess(btn); } catch (err) {}
+    document.body.removeChild(textArea);
+  }
+}
+
+function showSuccess(btn) {
+  const originalText = btn.innerText;
+  btn.innerText = "Copied!";
+  btn.style.background = "#fff";
+  setTimeout(() => {
+    btn.innerText = originalText;
+    btn.style.background = "#22c55e";
+  }, 2000);
+}
+
+// Xabarlarni UI ga chiqarish
+function addMessageToUI(obj) {
   const div = document.createElement("div");
   div.className = "msg " + obj.cls;
 
-  // Matn
   if (obj.text) {
     const p = document.createElement("div");
     p.innerText = obj.text;
     div.appendChild(p);
   }
 
-  // Kod
-  if (obj.code) {
-    const codeBox = document.createElement("div");
-    codeBox.className = "code-box";
-
-    const pre = document.createElement("pre");
-    pre.innerText = obj.code;
-
-    const btn = document.createElement("button");
-    btn.className = "copy-btn";
-    btn.innerText = "Copy";
-    btn.onclick = () => {
-      navigator.clipboard.writeText(obj.code);
-      btn.innerText = "Copied";
-      setTimeout(() => btn.innerText = "Copy", 1500);
-    };
-
-    codeBox.appendChild(btn);
-    codeBox.appendChild(pre);
-    div.appendChild(codeBox);
+  // Barcha kod bloklarini massivdan chiqarish
+  if (obj.codes && Array.isArray(obj.codes)) {
+    obj.codes.forEach(codeStr => {
+      const codeBox = document.createElement("div");
+      codeBox.className = "code-box";
+      const pre = document.createElement("pre");
+      pre.innerText = codeStr;
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.innerText = "Copy";
+      btn.onclick = () => copyToClipboard(codeStr, btn);
+      codeBox.appendChild(btn);
+      codeBox.appendChild(pre);
+      div.appendChild(codeBox);
+    });
   }
 
-  // Rasm
   if (obj.image) {
     const imgBox = document.createElement("div");
     imgBox.className = "img-box";
@@ -166,51 +119,78 @@ function addMessage(obj) {
     div.appendChild(imgBox);
   }
 
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+  chatDiv.appendChild(div);
+  chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
+// Firebase'dan xabarlarni real vaqtda olish
+chatRef.on("child_added", (snapshot) => {
+  const msg = snapshot.val();
+  addMessageToUI(msg);
+  // AI xotirasi uchun saqlash
+  chatHistory.push(`${msg.cls === 'user' ? 'User' : 'AI'}: ${msg.text}`);
+});
+
+// Yuborish funksiyasi
 async function send() {
-  const q = document.getElementById("q");
-  const text = q.value.trim();
+  const text = qInput.value.trim();
   if (!text) return;
 
-  addMessage({text: text, code: null, image: null, cls: "user"});
-  q.value = "";
+  // Foydalanuvchi xabarini bazaga yuborish
+  const userMsg = { text: text, codes: [], image: null, cls: "user" };
+  chatRef.push(userMsg);
+  qInput.value = "";
 
-  addMessage({text: "⏳ Javob olinmoqda...", code: null, image: null, cls: "ai"});
+  // Kutish holati
+  const loadingDiv = document.createElement("div");
+  loadingDiv.className = "msg ai";
+  loadingDiv.innerText = "⏳ O'ylayapman...";
+  chatDiv.appendChild(loadingDiv);
+  chatDiv.scrollTop = chatDiv.scrollHeight;
 
   try {
-    // Pollinations text
-    const rText = await fetch("https://text.pollinations.ai/" + encodeURIComponent(text));
-    const t = await rText.text();
+    // Xotira bilan birga so'rov yuborish (oxirgi 10 ta xabar)
+    const context = chatHistory.slice(-10).join("\n") + "\nUser: " + text;
+    const response = await fetch("https://text.pollinations.ai/" + encodeURIComponent(context));
+    const fullResponse = await response.text();
 
-    // Pollinations image (agar text "rasm:" bilan bo‘lsa)
+    if (chatDiv.contains(loadingDiv)) chatDiv.removeChild(loadingDiv);
+
+    // AI javobini parsing qilish (bir nechta kod bloklarini ajratish)
+    let mainText = fullResponse;
+    const codeBlocks = [];
+    const regex = /```(?:[a-z0-9]*)\n([\s\S]*?)```/g;
+    let match;
+
+    while ((match = regex.exec(fullResponse)) !== null) {
+      codeBlocks.push(match[1].trim());
+      mainText = mainText.replace(match[0], ""); 
+    }
+
     let imgUrl = null;
     if (text.toLowerCase().startsWith("rasm:")) {
-      const prompt = encodeURIComponent(text.replace(/^rasm:/i,""));
-      imgUrl = "https://image.pollinations.ai/prompt/" + prompt;
+      imgUrl = "https://image.pollinations.ai/prompt/" + encodeURIComponent(text.replace(/^rasm:/i,""));
     }
 
-    // Kod topish (``` ... ``` ichida bo‘lsa)
-    let code = null;
-    if (t.includes("```")) {
-      const parts = t.split("```");
-      tMain = parts[0];
-      code = parts[1];
-    } else {
-      tMain = t;
-    }
+    // AI xabarini bazaga saqlash
+    const aiMsg = { 
+        text: mainText.trim() || "Mana so'ralgan kodlar:", 
+        codes: codeBlocks, 
+        image: imgUrl, 
+        cls: "ai" 
+    };
+    chatRef.push(aiMsg);
 
-    // Oxirgi loading xabarni o‘chiramiz
-    chat.removeChild(chat.lastChild);
-
-    addMessage({text: tMain, code: code, image: imgUrl, cls: "ai"});
   } catch (e) {
-    chat.removeChild(chat.lastChild);
-    addMessage({text: "❌ Xatolik yuz berdi", code: null, image: null, cls: "ai"});
+    if(chatDiv.contains(loadingDiv)) chatDiv.removeChild(loadingDiv);
+    addMessageToUI({text: "❌ Xatolik yuz berdi. Internetni tekshiring.", cls: "ai"});
   }
 }
+
+// Hodisalarni bog'lash
+sendBtn.onclick = send;
+qInput.onkeypress = (e) => { if(e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
+
 </script>
 
 </body>
