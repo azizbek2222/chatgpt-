@@ -7,6 +7,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
 
 <style>
 /* Dizayn o'zgarishsiz saqlandi */
@@ -36,7 +37,31 @@ button { margin-left: 8px; border: none; border-radius: 8px; padding: 0 16px; fo
 </div>
 
 <script>
-// 1. Siz yuborgan Firebase konfiguratsiyasi
+// --- AdsGram Sozlamalari ---
+// "your-block-id" o'rniga AdsGram'dan olgan haqiqiy ID'ni qo'ying
+const AdController = window.Adsgram.init({ blockId: "int-19884" });
+let messageCount = 0; // Xabarlar sanagichi
+
+function showAds() {
+    AdController.show().then((result) => {
+        console.log("Reklama ko'rsatildi");
+    }).catch((err) => {
+        console.error("Reklama xatoligi:", err);
+    });
+}
+
+// Har 120 soniyada avtomatik reklama chiqarish
+setInterval(() => {
+    showAds();
+}, 120000); 
+
+// --- Firebase va Chat Mantiqi ---
+let userId = localStorage.getItem("chat_user_id");
+if (!userId) {
+    userId = "user_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("chat_user_id", userId);
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyBrMKJ4MPilQg6gZsaE-Hlqlgo5F4Q8IsM",
   authDomain: "xabar-tizimi.firebaseapp.com",
@@ -48,17 +73,15 @@ const firebaseConfig = {
   measurementId: "G-RCMHD7ZPNJ"
 };
 
-// Firebase-ni ishga tushirish
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const chatRef = db.ref("messages");
+const chatRef = db.ref("messages/" + userId);
 
 const chatDiv = document.getElementById("chat");
 const qInput = document.getElementById("q");
 const sendBtn = document.getElementById("sendBtn");
 let chatHistory = []; 
 
-// Nusxa olish funksiyasi
 function copyToClipboard(text, btn) {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(() => showSuccess(btn));
@@ -82,7 +105,6 @@ function showSuccess(btn) {
   }, 2000);
 }
 
-// Xabarlarni UI ga chiqarish
 function addMessageToUI(obj) {
   const div = document.createElement("div");
   div.className = "msg " + obj.cls;
@@ -93,7 +115,6 @@ function addMessageToUI(obj) {
     div.appendChild(p);
   }
 
-  // Barcha kod bloklarini massivdan chiqarish
   if (obj.codes && Array.isArray(obj.codes)) {
     obj.codes.forEach(codeStr => {
       const codeBox = document.createElement("div");
@@ -123,25 +144,26 @@ function addMessageToUI(obj) {
   chatDiv.scrollTop = chatDiv.scrollHeight;
 }
 
-// Firebase'dan xabarlarni real vaqtda olish
 chatRef.on("child_added", (snapshot) => {
   const msg = snapshot.val();
   addMessageToUI(msg);
-  // AI xotirasi uchun saqlash
   chatHistory.push(`${msg.cls === 'user' ? 'User' : 'AI'}: ${msg.text}`);
 });
 
-// Yuborish funksiyasi
 async function send() {
   const text = qInput.value.trim();
   if (!text) return;
 
-  // Foydalanuvchi xabarini bazaga yuborish
+  // Har 2 marta xabar yuborilganda reklama ko'rsatish
+  messageCount++;
+  if (messageCount % 2 === 0) {
+      showAds();
+  }
+
   const userMsg = { text: text, codes: [], image: null, cls: "user" };
   chatRef.push(userMsg);
   qInput.value = "";
 
-  // Kutish holati
   const loadingDiv = document.createElement("div");
   loadingDiv.className = "msg ai";
   loadingDiv.innerText = "⏳ O'ylayapman...";
@@ -149,14 +171,12 @@ async function send() {
   chatDiv.scrollTop = chatDiv.scrollHeight;
 
   try {
-    // Xotira bilan birga so'rov yuborish (oxirgi 10 ta xabar)
     const context = chatHistory.slice(-10).join("\n") + "\nUser: " + text;
     const response = await fetch("https://text.pollinations.ai/" + encodeURIComponent(context));
     const fullResponse = await response.text();
 
     if (chatDiv.contains(loadingDiv)) chatDiv.removeChild(loadingDiv);
 
-    // AI javobini parsing qilish (bir nechta kod bloklarini ajratish)
     let mainText = fullResponse;
     const codeBlocks = [];
     const regex = /```(?:[a-z0-9]*)\n([\s\S]*?)```/g;
@@ -172,7 +192,6 @@ async function send() {
       imgUrl = "https://image.pollinations.ai/prompt/" + encodeURIComponent(text.replace(/^rasm:/i,""));
     }
 
-    // AI xabarini bazaga saqlash
     const aiMsg = { 
         text: mainText.trim() || "Mana so'ralgan kodlar:", 
         codes: codeBlocks, 
@@ -187,7 +206,6 @@ async function send() {
   }
 }
 
-// Hodisalarni bog'lash
 sendBtn.onclick = send;
 qInput.onkeypress = (e) => { if(e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
 
